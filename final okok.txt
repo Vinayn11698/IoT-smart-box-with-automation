@@ -1,0 +1,120 @@
+#include <ESP8266WiFi.h>
+
+const char* ssid = "Vinay N";
+const char* password = "Vinay@KN";
+
+const int trigger = 0;
+const int echo = 1;
+ 
+ 
+float tm=0,distance=0;
+ 
+// Create an instance of the server
+// specify the port to listen on as an argument
+WiFiServer server(80);
+
+void setup() {
+  Serial.begin(115200);
+  delay(10);
+
+  // prepare GPIO2
+ 
+ pinMode(trigger,OUTPUT);
+ pinMode(echo,INPUT);
+ // prepare GPIO2
+  pinMode(2, OUTPUT);
+  digitalWrite(2, 0);
+
+  
+  // Connect to WiFi network
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  
+  WiFi.begin(ssid, password);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
+  
+  // Start the server
+  server.begin();
+  Serial.println("Server started");
+
+  // Print the IP address
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+  // Check if a client has connected
+
+ int duration,distance,percentage,heightTank,deviation;
+      heightTank=1500;
+      deviation=29;
+      digitalWrite(trigger,HIGH);
+      delayMicroseconds(1000);
+      digitalWrite(trigger,LOW);
+      duration=pulseIn(echo,HIGH);
+      distance=(duration/2)/29.1;
+      percentage=100-(((heightTank-distance)*100)/heightTank);
+      Serial.println(percentage);
+      Serial.print("percentage");
+      delay(1000);
+  
+  WiFiClient client = server.available();
+  if (!client) {
+    return;
+  }
+  
+  // Wait until the client sends some data
+  Serial.println("new client");
+  while(!client.available()){
+    delay(1);
+  }
+  
+  // Read the first line of the request
+  String req = client.readStringUntil('\r');
+  Serial.println(req);
+  client.flush();
+  
+  // Match the request
+  int val;
+  if (req.indexOf("/gpio/0") != -1)
+    val = 0;
+
+  else if (req.indexOf("/gpio/1") != -1)
+    val = 1;
+  else {
+    Serial.println("invalid request");
+    client.stop();
+    return;
+  }
+
+  // Set GPIO2 according to the request
+  digitalWrite(2, val);
+  
+  client.flush();
+  
+  // Prepare the response
+  String c = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\nHELLO VINAY ,PREETAM, TANUJA, HARIPRASAD";
+  String s = "\r\n: \r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\nCONTANT in the  BOX IS ";
+  s += String(percentage);
+  
+  s += "</html>\n";
+ String v = "\r\n: \r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\nLIGHT is now ";
+  v += (val)?"ON":"OFF";
+  v += "</html>\n";
+  // Send the response to the client
+  client.print(c);
+  client.print(v);
+  client.print(s);
+  delay(1);
+  Serial.println("Client disonnected");
+  delay(1000);
+  // The client will actually be disconnected 
+  // when the function returns and 'client' object is detroyed
+}
